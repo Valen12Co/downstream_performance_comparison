@@ -62,6 +62,7 @@ This code is based on two main repos. Certain functions where taken from other r
 - `https://github.com/Vegetebird/GraphMLP/` for the 2D-3D lifting model
 - `https://github.com/KAIST-VICLab/SkateFormer/` for the action recognition model
 - `https://github.com/RHnejad/`, the user provided usefull tools for visualisation and 2D-3D lifting
+  
 Finally, an other part of the project can be found on `https://github.com/Valen12Co/probabilistic_pose/`. The probabilistic pose estimator changes where made there first.
 
 [1] SHUKLA, Megh, SALZMANN, Mathieu, et ALAHI, Alexandre. TIC-TAC: A Framework for Improved Covariance Estimation in Deep Heteroscedastic Regression. In: Proceedings of the 41st International Conference on Machine Learning (ICML) 2024. 2024.
