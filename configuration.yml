@@ -1,0 +1,34 @@
+experiment_name: "TryThis" # A folder with this name will be created in save_path
+
+trials: 1
+model_2D_prediction: "Probabilistic" # One of ['Hourglass', 'ViTPose', 'GroundThruth','Probabilistic'] #Always fill this one. For 3D pred it is the model trained, training set
+model_2D_dataset: "ViTPose" # One of ['Hourglass', 'ViTPose','GroundThruth'] #for 3d pred it is the data you want to use, evaluation set
+model_3D_prediction: "GraphMLP" #One of ['GraphMLP', 'SkateFormer']
+model_prob_pose: "ViTPose" # One of ['Hourglass', 'ViTPose']
+
+use_hessian: False # Default: False, can also be True
+
+save_path: "InThis"
+
+dataset: {
+  mpii_params: {precached: False},
+  # precached: True implies preprocessed version of MPII exists
+  # Should be False the first time this code is run, and true subsequently
+  coco_params: {precached: True}
+}
+
+experiment_settings: {
+  epochs: 20,       # Default: 150
+  lr: 0.001,         # Default: {1e-2: Hoursglass, 1e-3: ViTPose}
+  batch_size: 64,    # Default: 32
+}
+
+# ViTPose configuration is in models/vit_pose/vitpose_config.py
+architecture: {
+  hourglass: {nstack: 2, channels: 64}, #64
+  aux_net: {fc: [64, 64, 64]}, #64 64 64
+  joint_prediction: {fc: [64, 64]} #64 64 64
+}
+
+# If RAM permits, load all images into memory
+load_images: True
