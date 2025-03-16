@@ -56,6 +56,12 @@ The main files are the following, if you want the main instruction on how to run
 * `visualisation2Dprobpose.py`: visualize 2D keypoints prediction with the probabilistic pose estimator
 *  `visualisation3D.py`: visualize 3D keypoints prediction
 * `visualisationGIF.py`: visualize as a GIF the keypoints prediction, however this file is not finished.
+* `visualisation2Dprobpose_covariance.py`: visualize the covariance evolution for the keypoints prediction when occluding the joints
+## Visualisation
+The different visualisation files are here for debugging and verifying the pose obtained. The following examples come from `visualisation3D` and `visualisation2Dprobpose_covariance`.
+![Comparison of the trained lifting models when 2D keypoints where predicted with ViTPose.](images/3D.png)
+![Keypoints prediction and covariance matrix, when certain joints are occluded.](images/covariance.jpg)
+
 ## References
 This code is based on two main repos. Certain functions where taken from other repos but cited at the beginning of the function used for. The three main ones:
 - `https://github.com/vita-epfl/TIC-TAC/` for the probabilistic pose estimator
