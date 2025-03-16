@@ -229,8 +229,8 @@ def visualize_on_image_prob_pose(ground_truth_keypoints,list_prob_pose, image, n
     
     # Plot predicted keypoints and skeleton
     for i in range(len(list_prob_pose)):
-        xdata2 = list_prob_pose[i][:,0]
-        ydata2 = list_prob_pose[i][:,1]
+        ydata2 = list_prob_pose[i][:,0]
+        xdata2 = list_prob_pose[i][:,1]
         ax.scatter(xdata2, ydata2, color="mediumvioletred", label="Probabilistic")
         for j in range(len(sk_points)):
             ax.plot(xdata2[sk_points[i]], ydata2[sk_points[i]], color="palevioletred")
@@ -303,7 +303,7 @@ def visualize_on_COCO(vitpose_keypoints, hourglass_keypoints, image, name):
     plt.savefig(name)
     plt.close(fig)
 
-def visualize_3D_all(ground_truth_keypoints,vitpose_keypoints, hourglass_keypoints, name):
+def visualize_3D_all(ground_truth_keypoints,vitpose_keypoints, hourglass_keypoints, probabilistic_keypoints, name):
     #Keypoints = gt, keypoints_2 = predicted
     #breakpoint()
     
@@ -312,11 +312,13 @@ def visualize_3D_all(ground_truth_keypoints,vitpose_keypoints, hourglass_keypoin
     ground_truth_keypoints = ground_truth_keypoints.detach().cpu().numpy() if torch.is_tensor(ground_truth_keypoints) else ground_truth_keypoints
     vitpose_keypoints = vitpose_keypoints.detach().cpu().numpy() if torch.is_tensor(vitpose_keypoints) else vitpose_keypoints
     hourglass_keypoints = hourglass_keypoints.detach().cpu().numpy() if torch.is_tensor(hourglass_keypoints) else hourglass_keypoints
+    probabilistic_keypoints = probabilistic_keypoints.detach().cpu().numpy() if torch.is_tensor(probabilistic_keypoints) else probabilistic_keypoints
 
     if ground_truth_keypoints.shape[0] != 17 :
         ground_truth_keypoints = np.insert(ground_truth_keypoints , 0 , values= [0,0], axis=0 )
         vitpose_keypoints = np.insert(vitpose_keypoints , 0 , values= [0,0], axis=0 )
         hourglass_keypoints = np.insert(hourglass_keypoints , 0 , values= [0,0], axis=0 )
+        probabilistic_keypoints = np.insert(probabilistic_keypoints , 0 , values= [0,0], axis=0 )
 
     plt.figure()
     ax = plt.axes(projection='3d')
@@ -340,6 +342,12 @@ def visualize_3D_all(ground_truth_keypoints,vitpose_keypoints, hourglass_keypoin
     ax.scatter(xdata2, ydata2, color="gold", label="Stacked Hourglass")
     for i in range(len(sk_points)):
         ax.plot(xdata[sk_points[i]], ydata[sk_points[i]], zdata[sk_points[i]], color="gold")
+
+    xdata2 = probabilistic_keypoints[:, 0]
+    ydata2 = probabilistic_keypoints[:, 1]
+    ax.scatter(xdata2, ydata2, color="limegreen", label="Probabilistic")
+    for i in range(len(sk_points)):
+        ax.plot(xdata[sk_points[i]], ydata[sk_points[i]], zdata[sk_points[i]], color="limegreen")
 
 
     plt.legend(loc='upper left')

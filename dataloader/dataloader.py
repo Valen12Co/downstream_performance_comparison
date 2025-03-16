@@ -239,9 +239,9 @@ class Human36_dataset_3D(Dataset):
         elif model_2D == 'Probabilistic':
             self.probabilistic = True
             if is_train:#Only GroundTruth for now generated with ViTPose model
-                keypoints_2d_path = directory + 'keypoints_2D_GroundThruth_trainset_prob_pose.npy'
+                keypoints_2d_path = directory + 'keypoints_2D_Probabilistic_trainset_prob_pose2.npy'
             else:
-                keypoints_2d_path = directory + 'keypoints_2D_GroundThruth_testset_prob_pose.npy'
+                keypoints_2d_path = directory + 'keypoints_2D_Probabilistic_testset_prob_pose2.npy'
         else:
             raise ValueError(f"Unsupported model name '{model_2D}'. Please choose either 'ViTPose' or 'Hourglass' or 'GroundThruth.")
         
@@ -284,17 +284,29 @@ class Human36_dataset_3D(Dataset):
 
     def __getitem__(self, idx):
         if self.probabilistic:
-            subject, action, index = self.list_of_index[idx]
+            subject, action, index, max_index = self.list_of_index[idx]
+            index = int(index)
             ground_truth_3d = []
             keypoints_2d = []
-            for idx in range(index-self.number_of_frames//2,index+self.number_of_frames//2+1):
-                samples = torch.stack([torch.distributions.MultivariateNormal(self.giant_dic[subject][action]['mean'][idx][i,:],self.giant_dic[subject][action]['covariance'][idx][i,:]).sample() for i in range(self.giant_dic[subject][action]['mean'][idx].shape[0])])
-            #    #samples = np.array([np.random.multivariate_normal(self.giant_dic[subject][action]['mean'][idx][i,:], self.giant_dic[subject][action]['covariance'][idx][i,:], size=1).squeeze() for i in range(self.giant_dic[subject][action]['mean'][idx].shape[0])])
+            for idx_frame in range(index-self.number_of_frames//2,index+self.number_of_frames//2+1):
+                try:
+                    samples = torch.distributions.MultivariateNormal(self.giant_dic[subject][action]['mean'][idx_frame],self.giant_dic[subject][action]['covariance'][idx_frame]).sample()
+                except IndexError as e:
+                    print(f"IndexError: {e}")
+                    print(f"Length of mean: {len(self.giant_dic[subject][action]['mean'])}")
+                    print(f"Length of covariance: {len(self.giant_dic[subject][action]['covariance'])}")
+                    print(f"Requested idx_frame: {idx_frame}")
+                    print(f"Index of list: {index}")
+                    print(f"Length of GT 3d: {len(self.giant_dic[subject][action]['3d'])}")
+                    print(f"Apparent max index {max_index}")
+                    sys.exit("Stopping execution due to IndexError.")  
+            #  #samples = np.array([np.random.multivariate_normal(self.giant_dic[subject][action]['mean'][idx][i,:], self.giant_dic[subject][action]['covariance'][idx][i,:], size=1).squeeze() for i in range(self.giant_dic[subject][action]['mean'][idx].shape[0])])
                 keypoints_2d.append(samples)
             ground_truth_3d.append(self.giant_dic[subject][action]['3d'][index])
             keypoints_2d = torch.stack(keypoints_2d)
             ground_truth_3d =torch.stack(ground_truth_3d)
-            keypoints_2d = keypoints_2d.view(-1, self.num_keypoints, 2) / 64
+            keypoints_2d = keypoints_2d.view(-1, self.num_keypoints, 2) / 256 #image shape in 2d keypoint recognition
+            keypoints_2d = keypoints_2d[:,:,[1,0]]
             ground_truth_3d = ground_truth_3d.view(-1, 3)
             # keypoints_2d = keypoints_2d.reshape(-1,self.num_keypoints,2)/64
             # ground_truth_3d = ground_truth_3d.reshape(-1,3)
@@ -365,9 +377,10 @@ class Human36_dataset_3D(Dataset):
                     pose_3d = data_file_3d[s][a][frame_num]  
                     pose_3d = pose_3d[ KeyPoints_from3d ,:] #only keeping the 16 or 17 keypoints we want
                     
-                    num_frame_in_sequence.append([frame_num+1,len(data_file_3d[s][a])])
+                    if not probabilistic:
+                        num_frame_in_sequence.append([frame_num+1,len(data_file_3d[s][a])])
                     if probabilistic:
-                        giant_dic[s][a]['num_frame_in_sequence'].append([frame_num+1,len(data_file_3d[s][a]),s,a])
+                        giant_dic[s][a]['num_frame_in_sequence'].append([frame_num+1,len(keypoints2D[s][a]),s,a])
                     if Mono_3d_file :
                         all_in_one_dataset_3d[i] = pose_3d
                         if ground_truth:
@@ -403,7 +416,7 @@ class Human36_dataset_3D(Dataset):
                                 all_in_one_dataset_2d_keypoints[i] = keypoints2D[s][a+cam_ids[c]][frame_num]
                             all_in_one_dataset_3d[i] = tmp
 
-                            i = i + 1 
+                            i = i + 1
 
         local_vars = locals()
         total_size = sum(sys.getsizeof(var) for var in local_vars.values())
@@ -442,9 +455,9 @@ class Human36_dataset_3D(Dataset):
         list_index = []
         old_index =  -100
         for i, (index, max_index, subject, action) in enumerate(num_frame_in_sequence):
-            if (int(index)>=number_of_frames//2+1) and (int(index)<=int(max_index)-(number_of_frames//2)):
+            if (int(index)>=number_of_frames//2+1) and (int(index)<=int(max_index)-(number_of_frames//2)-1):
                 if int(index)>=old_index+number_of_frames/2:
-                    list_index.append([subject,action, i])
+                    list_index.append([subject,action, index, max_index])
                     old_index = int(index)
         return list_index
 
@@ -646,6 +659,8 @@ class H36_dataset_probabilistic_pose(Dataset):
         self.split_rate = split_rate
         self.augmentation_flag = False
         self.flip_prob = 0.5
+        self.black_box_prob = 0.5
+        self.box_size = 10
         self.conf = conf
 
         self.dataset2d, self.dataset3d, self.video_and_frame_paths = self.read_data(subjects= subjectp)
@@ -662,7 +677,6 @@ class H36_dataset_probabilistic_pose(Dataset):
                 border_mode=cv2.BORDER_CONSTANT, value=0)
             ])
 
-        self.flip_prob = 0.5
         self.horizontal_flip = self.augmentation([albu.HorizontalFlip(p=1)])
 
     def __len__(self):
@@ -704,14 +718,16 @@ class H36_dataset_probabilistic_pose(Dataset):
                 augmented = self.horizontal_flip(image=frame, keypoints=gt.reshape(-1, 3)[:, :2])
                 frame = augmented['image']
                 gt[:, :, :2] = np.stack(augmented['keypoints'], axis=0).reshape(-1, self.conf.experiment_settings['num_hm'], 2)
-
                 # Flip ground truth to match horizontal flip
+                """
                 gt[:, [1,4], :] = gt[:, [4,1], :]
                 gt[:, [2,5], :] = gt[:, [5,2], :]
                 gt[:, [3,6], :] = gt[:, [6,3], :]
                 gt[:, [11,14], :] = gt[:, [14,11], :]
                 gt[:, [12,15], :] = gt[:, [15,12], :]
                 gt[:, [13,16], :] = gt[:, [16,13], :]
+                """
+                #gt[:,:,0] = frame.shape[1]-gt[:,:,0]-1
 
             # Ensure shift scale rotate augmentation retains all joints
             tries = 5
@@ -733,13 +749,21 @@ class H36_dataset_probabilistic_pose(Dataset):
             if augment_ok:
                 frame = image_
                 gt[:, :, :2] = gt_
-
+            if torch.rand(1) < self.black_box_prob:
+                joint_idx = torch.randint(0, 16, (1,))
+                x, y,_ = gt[0,joint_idx,:]
+                x, y = int(x), int(y)
+                half_size = self.box_size//2
+                x_min, x_max = max(0,x-half_size), min(frame.shape[1],x+half_size)
+                y_min, y_max = max(0,y-half_size), min(frame.shape[0],y+half_size)
+                frame[y_min:y_max, x_min:x_max]=0
 
         heatmaps, _ = heatmap_generator(joints=np.copy(gt), occlusion=self.occlusion, hm_shape=self.hm_shape, img_shape=frame.shape)
         heatmaps = self.hm_peak * heatmaps
+        heatmaps = heatmaps.transpose(0, 2, 1)
 
         keypoints_2d = gt
-        keypoints_2d[:,:,:2]/=frame.shape[0]
+        keypoints_2d[:,:,:2]= keypoints_2d[:,:,[1, 0]]
 
         subject, action, frame_num = self.find_parameters_from_path(self.video_and_frame_paths[idx][0])
 
@@ -829,7 +853,7 @@ class H36_dataset_probabilistic_pose(Dataset):
         Albumentation objects for augmentation in getitem
         """
         return albu.Compose(
-            transform, p=1, keypoint_params=albu.KeypointParams(format='yx', remove_invisible=False))
+            transform, p=1, keypoint_params=albu.KeypointParams(format='xy', remove_invisible=False))
 
     @staticmethod
     def read_data(subjects = subjects):

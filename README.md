@@ -57,12 +57,9 @@ The main files are the following, if you want the main instruction on how to run
 *  `visualisation3D.py`: visualize 3D keypoints prediction
 * `visualisationGIF.py`: visualize as a GIF the keypoints prediction, however this file is not finished.
 ## References
-This code is based on two main repos. Certain functions where taken from other repos but cited at the beginning of the function used for. The four main ones:
-- `https://github.com/vita-epfl/TIC-TAC/` for the probabilistic pose estimator [1]
+This code is based on two main repos. Certain functions where taken from other repos but cited at the beginning of the function used for. The three main ones:
+- `https://github.com/vita-epfl/TIC-TAC/` for the probabilistic pose estimator
 - `https://github.com/Vegetebird/GraphMLP/` for the 2D-3D lifting model
 - `https://github.com/KAIST-VICLab/SkateFormer/` for the action recognition model
-- `https://github.com/RHnejad/`, the user provided usefull tools for visualisation and 2D-3D lifting
-  
-Finally, an other part of the project can be found on `https://github.com/Valen12Co/probabilistic_pose/`. The probabilistic pose estimator changes where made there first.
 
-[1] SHUKLA, Megh, SALZMANN, Mathieu, et ALAHI, Alexandre. TIC-TAC: A Framework for Improved Covariance Estimation in Deep Heteroscedastic Regression. In: Proceedings of the 41st International Conference on Machine Learning (ICML) 2024. 2024.
+Finally, an other part of the project can be found on `https://github.com/vita-epfl/probabilistic_pose/`. The probabilistic pose estimator changes where made there first.

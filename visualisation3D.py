@@ -58,6 +58,9 @@ class Visualise_3D_prediction(object):
             self.training_pkg[method]['networks_hourglass'] = (copy.deepcopy(model).cuda())
             model_path = '/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/checkpoint/Hourglass1/model_1_13.pth'
             self.training_pkg[method]['networks_hourglass'].load_state_dict(torch.load(model_path))
+            self.training_pkg[method]['networks_probabilistic'] = (copy.deepcopy(model).cuda())
+            model_path = '/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/checkpoint/Final120epoch/model_19_9.pth'
+            self.training_pkg[method]['networks_probabilistic'].load_state_dict(torch.load(model_path))
 
     def run_model(self) -> dict:
         print("Model running to obtain 2D keypoints: Batch Size - {} total number of batches = {}".format(self.batch_size, len(self.torch_dataloader_hourglass)))
@@ -68,6 +71,9 @@ class Visualise_3D_prediction(object):
 
         net_hourglass = self.training_pkg[method]['networks_hourglass']
         net_hourglass.eval()
+
+        net_probabilistic = self.training_pkg[method]['networks_probabilistic']
+        net_probabilistic.eval()
 
         with torch.no_grad():
             for i, (gt_3d, keypoints_2D) in tqdm(enumerate(self.torch_dataloader_vitpose), ascii=True):
@@ -92,9 +98,15 @@ class Visualise_3D_prediction(object):
                 output_3D_vitpose_hourglass = (predicted_3D + flip_data(flipped_predicted_3D))/2
                 output_3D_vitpose_hourglass[:,:, self.args.root_joint, :] = 0
 
+                predicted_3D = net_probabilistic(keypoints_2D)
+                flipped_predicted_3D = net_probabilistic(flipped_keypoints_2D)
+                output_3D_vitpose_probabilistic = (predicted_3D + flip_data(flipped_predicted_3D))/2
+                output_3D_vitpose_probabilistic[:,:, self.args.root_joint, :] = 0
+
                 if i ==0:
                     output_3D_vitpose_vitpose = output_3D_vitpose_vitpose[0,:]
                     output_3D_vitpose_hourglass = output_3D_vitpose_hourglass[0,:]
+                    output_3D_vitpose_probabilistic = output_3D_vitpose_probabilistic[0,:]
                     break
             
             for i, (gt_3d, keypoints_2D) in tqdm(enumerate(self.torch_dataloader_hourglass), ascii=True):
@@ -119,21 +131,31 @@ class Visualise_3D_prediction(object):
                 output_3D_hourglass_hourglass = (predicted_3D + flip_data(flipped_predicted_3D))/2
                 output_3D_hourglass_hourglass[:,:, self.args.root_joint, :] = 0
 
+                predicted_3D = net_probabilistic(keypoints_2D)
+                flipped_predicted_3D = net_probabilistic(flipped_keypoints_2D)
+                output_3D_hourglass_probabilistic = (predicted_3D + flip_data(flipped_predicted_3D))/2
+                output_3D_hourglass_probabilistic[:,:, self.args.root_joint, :] = 0
+
                 if i ==0:
                     output_3D_hourglass_vitpose = output_3D_hourglass_vitpose[0,:]
                     output_3D_hourglass_hourglass = output_3D_hourglass_hourglass[0,:]
+                    output_3D_hourglass_probabilistic = output_3D_hourglass_probabilistic[0,:]
+
                     gt = out_target[0,:]
                     break
 
             #output_dataset_modelused
             e_v_v = mpjpe_p1(output_3D_vitpose_vitpose,gt).detach().cpu().numpy()
             e_v_h = mpjpe_p1(output_3D_vitpose_hourglass,gt).detach().cpu().numpy()
+            e_v_p = mpjpe_p1(output_3D_vitpose_probabilistic,gt).detach().cpu().numpy()
             e_h_v = mpjpe_p1(output_3D_hourglass_vitpose,gt).detach().cpu().numpy()
             e_h_h = mpjpe_p1(output_3D_hourglass_hourglass,gt).detach().cpu().numpy()
-            print("ERROR E_v_v",e_v_v,"E_V_H",e_v_h,"E_H_V",e_h_v,"E_H_H",e_h_h)
+            e_h_p = mpjpe_p1(output_3D_hourglass_probabilistic,gt).detach().cpu().numpy()
+
+            print("ERROR E_v_v",e_v_v,"E_V_H",e_v_h,"E_V_P",e_v_p,"E_H_V",e_h_v,"E_H_H",e_h_h,"E_H_P",e_h_p)
             print(gt.shape,output_3D_vitpose_vitpose.shape, output_3D_hourglass_vitpose.shape, output_3D_vitpose_hourglass.shape, output_3D_hourglass_hourglass.shape)
-            visualize_3D_all(gt[0,:],output_3D_vitpose_vitpose[0,:],output_3D_hourglass_vitpose[0,:],'model_vitpose')
-            visualize_3D_all(gt[0,:],output_3D_vitpose_hourglass[0,:],output_3D_hourglass_hourglass[0,:],'model_hourglass')
+            visualize_3D_all(gt[0,:],output_3D_vitpose_vitpose[0,:],output_3D_hourglass_vitpose[0,:],output_3D_vitpose_probabilistic[0,:],'model_vitpose')
+            visualize_3D_all(gt[0,:],output_3D_vitpose_hourglass[0,:],output_3D_hourglass_hourglass[0,:],output_3D_hourglass_probabilistic[0,:],'model_hourglass')
 
         return self.training_pkg
 

@@ -67,8 +67,8 @@ class Evaluate_3D_prediction(object):
                 model_dict.update(state_dict)
                 self.training_pkg[method]['networks'].load_state_dict(model_dict)
             elif self.conf.model_2D_prediction == 'Probabilistic':
-                #model_path = '/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/checkpoint/ProbPose/model_19_8.pth'
-                model_path = '/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/checkpoint/ProbPose2/model_19_9.pth'
+                #model_path = '/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/checkpoint/ProbPose2/model_26_16.pth'
+                model_path = '/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/checkpoint/ProbPoseFinal/model_26_16.pth'
                 self.training_pkg[method]['networks'].load_state_dict(torch.load(model_path))
             else:
                 raise ValueError(f"Unsupported model name '{self.conf.model_2D_prediction}'. Please choose either 'ViTPose' or 'Hourglass'.")

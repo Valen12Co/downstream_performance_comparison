@@ -64,6 +64,7 @@ class Visualize_2D_prediction(object):
         #self.sampler.set_augmentation(augment=True)
 
         # Evaluation loop
+        #self.sampler.set_augmentation(augment=True)
         with torch.no_grad():
             for i, (gt_2d, image, heatmaps, subject, action, frame_num) in tqdm(enumerate(self.torch_dataloader), ascii=True):
                 if i == 10:
@@ -73,76 +74,94 @@ class Visualize_2D_prediction(object):
                 image = image.float()
                 for method in training_methods:
                     images = image.float()
-                    gt = gt_2d
-                    net = self.training_pkg[method]['networks'][0]
-                    aux_net = self.training_pkg[method]['networks'][1]
-
-                    net.eval()
-                    aux_net.eval()
-
-                    outputs, pose_features = net(images)
-
-                    # At 64 x 64 level
-                    pred_uv = soft_argmax(outputs[:, -1]).view(
-                        outputs.shape[0], self.num_hm * 2)
-                    gt_uv = fast_argmax(heatmaps.to(pred_uv.device)).view(
-                        outputs.shape[0], self.num_hm * 2)
-
-                    matrix = self._aux_net_inference(pose_features, aux_net)
-                    covariance = self._get_covariance(method, matrix, net, pose_features, images)
+                    images = images[0,:]
 
 
+                    gt_2d = gt_2d[0,:]
+                    print(images.shape)
+                    print(gt_2d.shape)
 
-                    uv_to_xy = lambda uv: (uv[1], uv[0])
-                    gt_2d = gt_2d.squeeze(1)
-                    point = np.array([np.random.multivariate_normal(pred_uv[0,:].detach().cpu(), covariance[0,:,:].detach().cpu(), size=1).squeeze()]).reshape(-1,17,2)*image.shape[1]/heatmaps.shape[2]
-                    print(point.shape)
-                    pred_uv = pred_uv.reshape(-1,17,2)*image.shape[1]/heatmaps.shape[2]
-
-
-                    print(pred_uv.shape)
-                    fig, ax = plt.subplots(1, 1)
-                    ax.imshow(image[0])
-                    #ax.imshow(heatmaps.sum(dim=1, keepdim=True)[0,0,:].unsqueeze(2))
-
-                    for person in range(gt_2d.shape[0]):
-                        if person ==1:
-                            break
-                        for joint in range(gt_2d.shape[1]):
-                            gt_xy = uv_to_xy(gt_2d[person][joint])
-                            pred_xy = uv_to_xy(pred_uv[person][joint])
-                            point_xy = uv_to_xy(point[person][joint])
-                            if gt_2d[person][joint][2] >= 0 and gt_2d[person][joint][0] > 0 and gt_2d[person][joint][1] > 0:
-                                ax.add_patch(Circle(gt_xy, radius=2.5, color='green', fill=True))
-                                ax.add_patch(Circle(pred_xy, radius=2.5, color='red', fill=True))
-                                ax.add_patch(Circle(point_xy, radius=2.5, color='blue', fill=True))
+                    for j in range(17):
+                        images = images.unsqueeze(0)
 
 
-                    plt.show()
-                    os.makedirs(os.path.join("/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/visualisationprobpose", 'viz_getitem'), exist_ok=True)
-                    plt.savefig(os.path.join("/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/visualisationprobpose", 'viz_getitem', '{}.jpg'.format(i)), dpi=350)
-                    break
+                        net = self.training_pkg[method]['networks'][0]
+                        aux_net = self.training_pkg[method]['networks'][1]
+
+                        net.eval()
+                        aux_net.eval()
+                        outputs, pose_features = net(images)
+
+                        # At 64 x 64 level
+                        pred_uv = soft_argmax(outputs[:, -1]).view(
+                            outputs.shape[0], self.num_hm * 2)
+
+                        matrix = self._aux_net_inference(pose_features, aux_net).unsqueeze(0)
+                        covariance = self._get_covariance(method, matrix, net, pose_features, images)
+
+                        uv_to_xy = lambda uv: (uv[1], uv[0])
+                        point = np.array([np.random.multivariate_normal(pred_uv[0,:].detach().cpu(), covariance[0,:,:].detach().cpu(), size=1).squeeze()]).reshape(-1,17,2)*image.shape[1]/heatmaps.shape[2]
+                        pred_uv = pred_uv.reshape(-1,17,2)*image.shape[1]/heatmaps.shape[2]
 
 
-                    mean = pred_uv/image.shape[1]
-                    mean = mean.detach().cpu().numpy()
-                    covariance = covariance.detach().cpu().numpy()
-                    print(image.shape)
-                    print(mean.shape)
-                    print(covariance.shape)
-                    breakpoint()
-                    for idx in range(gt_2d.size(0)):
-                        points = []
-                        for j in range(5):
-                            #points.append(np.array([np.random.multivariate_normal(mean[0,:], covariance[0,:], size=1).squeeze()]).reshape(-1,2))
-                            points.append(mean[0,:].reshape(-1,2))
-                            if idx ==0:
-                                print("\nGT", gt_2d[0,:])
-                                print("\nMean",mean[0,:])
-                                print("\nCovariance", covariance[0,:])
-                                print("\nSampled point", points[j])
-                        if idx<10:
-                            visualize_on_image_prob_pose(gt_2d[idx,:].squeeze(0)[:,:2],points,images[idx,:].squeeze(0),str(i)+str(idx))
+                        fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+                        ax[0].imshow(image[0])
+                        #ax.imshow(heatmaps.sum(dim=1, keepdim=True)[0,0,:].unsqueeze(2))
+
+                        for person in range(gt_2d.shape[0]):
+                            if person ==1:
+                                break
+                            for joint in range(gt_2d.shape[1]):
+                                gt_xy = uv_to_xy(gt_2d[person][joint])
+                                pred_xy = uv_to_xy(pred_uv[person][joint])
+                                point_xy = uv_to_xy(point[person][joint])
+                                if gt_2d[person][joint][2] >= 0 and gt_2d[person][joint][0] > 0 and gt_2d[person][joint][1] > 0:
+                                    ax[0].add_patch(Circle(gt_xy, radius=2.5, color='green', fill=True))
+                                    ax[0].add_patch(Circle(pred_xy, radius=2.5, color='red', fill=True))
+                                    ax[0].add_patch(Circle(point_xy, radius=2.5, color='blue', fill=True))
+                                    ax[0].text(point_xy[0], point_xy[1], str(joint), fontsize=5, color='white',ha='center', va='center',bbox=dict(facecolor='black', alpha=0, edgecolor='none'))
+                        ax[0].set_title("Image with Keypoints")
+                        cov_matrix = covariance.squeeze(0).cpu().numpy()  # Convert tensor to numpy array
+                        heatmap = ax[1].imshow(cov_matrix, cmap='hot', interpolation='nearest', vmin=-0.5, vmax=0.5)
+                        ax[1].set_title("Covariance Heatmap")
+                        fig.colorbar(heatmap, ax=ax[1])
+
+                        plt.show()
+                        output_dir = "/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/visualisationprobpose/viz_covariance2"
+                        os.makedirs(output_dir, exist_ok=True)
+                        fig.savefig(os.path.join(output_dir, f'{j}.jpg'), dpi=350)
+
+                        gt_2d = gt_2d.squeeze(0)
+
+                        images = images[0,:]
+                        x_min, x_max = max(0,gt_2d[j,0].item()-10), min(images.shape[1],gt_2d[j,0].item()+10)
+                        y_min, y_max = max(0,gt_2d[j,1].item()-10), min(images.shape[0],gt_2d[j,1].item()+10)
+
+                        images[int(x_min):int(x_max),int(y_min):int(y_max)]=0
+                        gt_2d = gt_2d.unsqueeze(0)
+
+                break
+
+
+                mean = pred_uv/image.shape[1]
+                mean = mean.detach().cpu().numpy()
+                covariance = covariance.detach().cpu().numpy()
+                print(image.shape)
+                print(mean.shape)
+                print(covariance.shape)
+                breakpoint()
+                for idx in range(gt_2d.size(0)):
+                    points = []
+                    for j in range(5):
+                        #points.append(np.array([np.random.multivariate_normal(mean[0,:], covariance[0,:], size=1).squeeze()]).reshape(-1,2))
+                        points.append(mean[0,:].reshape(-1,2))
+                        if idx ==0:
+                            print("\nGT", gt_2d[0,:])
+                            print("\nMean",mean[0,:])
+                            print("\nCovariance", covariance[0,:])
+                            print("\nSampled point", points[j])
+                    if idx<10:
+                        visualize_on_image_prob_pose(gt_2d[idx,:].squeeze(0)[:,:2],points,images[idx,:].squeeze(0),str(i)+str(idx))
 
         return self.training_pkg
 
@@ -245,7 +264,9 @@ def init_2D_prediction_models(conf, name) -> tuple:
     
     elif name == 'Probabilistic':
         logging.info('Initializing Probabilistic Pose Network')
-        file_path = os.path.join("/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/InThis/ViTPoseDiv102", "training_pkg_0.pt")#best: ViTPoseDiv10Epoch100
+        #file_path = os.path.join("/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/InThis/ViTPoseDiv10Epoch100", "training_pkg_0.pt")
+        file_path = os.path.join("/mnt/vita/scratch/vita-students/users/perret/downstream_performance_comparison/InThis/ViTPoseDiv102", "training_pkg_0.pt")
+
         pose_net = torch.load(file_path)
     else:
         raise ValueError(f"Unsupported model name '{name}'. Please choose either 'ViTPose' or 'Hourglass'.")
